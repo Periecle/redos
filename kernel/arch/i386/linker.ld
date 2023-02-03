@@ -15,7 +15,9 @@ SECTIONS
 	   Next we'll put the .text section. */
 	.text BLOCK(4K) : ALIGN(4K)
 	{
-		*(.multiboot)
+		/* link the multiboot struct here */
+        . = ALIGN(8);
+        KEEP(*(.multiboot_header))
 		*(.text)
 	}
 
