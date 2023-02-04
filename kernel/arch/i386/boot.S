@@ -91,11 +91,18 @@ multiboot_entry:
 
         /*  Push the pointer to the Multiboot information structure. */
         pushl   %ebx
-        /*  Push the magic value. */
+        /*  Push the MultiBoot 2 magic value. */
         pushl   %eax
 
+        /* Validate MultiBoot 2 information and receive memory map
+         * WARNING: Do call anything before validating boot, as validate_boot relies on register state right after
+         * GRUB boot */
         call    EXT_C(validate_boot)
 
+        /*  Setup Global Descriptor Table */
+        call    EXT_C(setup_gdt)
+
+        /* Init Global Constructors */
         call    EXT_C(_init)
 
         /* Run kernel main */
