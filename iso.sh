@@ -12,4 +12,4 @@ menuentry "redos" {
 	multiboot2 /boot/redos.kernel
 }
 EOF
-grub-mkrescue -o redos.iso isodir
+grub2-mkrescue -o redos.iso isodir

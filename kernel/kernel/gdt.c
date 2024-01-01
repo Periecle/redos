@@ -1,9 +1,9 @@
 #include "gdt.h"
 #include <stdio.h>
 
-/* Array to hold the GDT entries */
+// Array to hold the GDT entries
 struct gdt_entry gdt[3];
-/* GDT pointer to be loaded into the CPU */
+// GDT pointer to be loaded into the CPU */
 struct gdt_ptr gp;
 
 // Function to set a GDT entry
@@ -41,44 +41,22 @@ void setup_gdt() {
     // Set the GDT base to the address of the gdt array
     gp.base = (uint32_t)&gdt;
 
-    gdt[0].base_low = 0;
-    gdt[0].base_middle = 0;
-    gdt[0].base_high = 0;
-    gdt[0].limit_low = 0;
-    gdt[0].access = 0;
-    gdt[0].granularity = 0;
+    // Set the first GDT entry as the null segment
+    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
+    gdt_set_entry(0, 0, 0, 0, 0);
 
-    gdt[1].base_low = 0;
-    gdt[1].base_middle = 0;
-    gdt[1].base_high = 0;
-    gdt[1].limit_low = 0xFFFF;
-    gdt[1].access = 0x9A;
-    gdt[1].granularity = 0xCF;
+    // Set the second GDT entry as the code segment for privilege level 0
+    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
+    gdt_set_entry(1, 0, 0xFFFF, GDT_CODE_SEGMENT_PL0, 0xCF);
 
-    gdt[2].base_low = 0;
-    gdt[2].base_middle = 0;
-    gdt[2].base_high = 0;
-    gdt[2].limit_low = 0xFFFF;
-    gdt[2].access = 0x92;
-    gdt[2].granularity = 0xCF;
+    // Set the third GDT entry as the data segment for privilege level 0
+    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
+    gdt_set_entry(2, 0, 0xFFFF, GDT_DATA_SEGMENT_PL0, 0xCF);
 
-    //TODO: investigate what is wrong with gdt_set_entry function and replace lines before that
-//    // Set the first GDT entry as the null segment
-//    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
-//    gdt_set_entry(0, 0, 0, 0, 0);
-//
-//    // Set the second GDT entry as the code segment for privilege level 0
-//    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
-//    gdt_set_entry(1, 0, 0xFFFF, GDT_CODE_SEGMENT_PL0, 0xCF);
-//
-//    // Set the third GDT entry as the data segment for privilege level 0
-//    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
-//    gdt_set_entry(2, 0, 0xFFFF, GDT_DATA_SEGMENT_PL0, 0xCF);
-
-    /* Load the GDT into the CPU */
+    // Load the GDT into the CPU
     __asm__ __volatile__("lgdt %0" : : "m" (gp));
 
-    /* Reload the segment registers, see Section 3.5 of the SDM */
+    // Reload the segment registers, see Section 3.5 of the SDM
     __asm__ __volatile__("movl %0, %%eax\n"
                          "movw %%ax, %%ds\n"
                          "movw %%ax, %%es\n"
@@ -87,10 +65,10 @@ void setup_gdt() {
                          "movw %%ax, %%ss\n"
             : : "r"(GDT_KERNEL_DATA_SEGMENT_SELECTOR));
 
-    /* Jump back to our code */
+    //Jump back to our code
     __asm__ __volatile__("ljmp %0, $1f\n 1:\n" : : "i"(GDT_KERNEL_CODE_SEGMENT_SELECTOR));
 
-    /* Self test of applying GDT table */
+    // Self test of applying GDT table
 
     printf("GDT should be set up. Running self test! \n");
 

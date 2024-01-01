@@ -11,12 +11,29 @@
 #define GDT_CODE_SEGMENT 0x0A
 #define GDT_DATA_SEGMENT 0x02
 
+// Base values for segment access bytes (without DPL bits)
+#define GDT_BASE_CODE_SEGMENT 0x9A  // 1001 1010b (Code Segment, Executable, Readable)
+#define GDT_BASE_DATA_SEGMENT 0x92  // 1001 0010b (Data Segment, Writable)
+
+// Privilege level bits
+#define GDT_DPL0 0x00  // Descriptor Privilege Level 0 (Kernel)
+#define GDT_DPL1 0x20  // Descriptor Privilege Level 1
+#define GDT_DPL2 0x40  // Descriptor Privilege Level 2
+#define GDT_DPL3 0x60  // Descriptor Privilege Level 3 (User)
+
 // Access byte values for privilege level 0 and 3
 // Reference: Intel Software Developer Manual, Volume 3, Section 3.5
-#define GDT_CODE_SEGMENT_PL0 (GDT_CODE_SEGMENT | 0x00)
-#define GDT_CODE_SEGMENT_PL3 (GDT_CODE_SEGMENT | 0x60)
-#define GDT_DATA_SEGMENT_PL0 (GDT_DATA_SEGMENT | 0x00)
-#define GDT_DATA_SEGMENT_PL3 (GDT_DATA_SEGMENT | 0x60)
+// Code segment access byte values for privilege levels 0-3
+#define GDT_CODE_SEGMENT_PL0 (GDT_BASE_CODE_SEGMENT | GDT_DPL0)
+#define GDT_CODE_SEGMENT_PL1 (GDT_BASE_CODE_SEGMENT | GDT_DPL1)
+#define GDT_CODE_SEGMENT_PL2 (GDT_BASE_CODE_SEGMENT | GDT_DPL2)
+#define GDT_CODE_SEGMENT_PL3 (GDT_BASE_CODE_SEGMENT | GDT_DPL3)
+
+// Data segment access byte values for different privilege levels 0-3
+#define GDT_DATA_SEGMENT_PL0 (GDT_BASE_DATA_SEGMENT | GDT_DPL0)
+#define GDT_DATA_SEGMENT_PL1 (GDT_BASE_DATA_SEGMENT | GDT_DPL1)
+#define GDT_DATA_SEGMENT_PL2 (GDT_BASE_DATA_SEGMENT | GDT_DPL2)
+#define GDT_DATA_SEGMENT_PL3 (GDT_BASE_DATA_SEGMENT | GDT_DPL3)
 
 // Structure to represent a GDT entry
 // Reference: Intel Software Developer Manual, Volume 3, Section 3.4
