@@ -1,62 +1,45 @@
 #include "gdt.h"
 #include <stdio.h>
 
-// Array to hold the GDT entries
+/* Define entries and pointer for GDT */
 struct gdt_entry gdt[3];
-// GDT pointer to be loaded into the CPU */
 struct gdt_ptr gp;
 
-// Function to set a GDT entry
-// Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
+/* Define the virtual base address for kernel */
+#define KERNEL_VIRTUAL_BASE 0xC0000000
+
+/* Set up a GDT entry */
 void gdt_set_entry(int32_t num, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran) {
-
-    // Set the lower 16 bits of the base
     gdt[num].base_low = (base & 0xFFFF);
-
-    // Set the next 8 bits of the base
     gdt[num].base_middle = (base >> 16) & 0xFF;
-
-    // Set the upper 8 bits of the base
     gdt[num].base_high = (base >> 24) & 0xFF;
-
-    // Set the lower 16 bits of the limit
     gdt[num].limit_low = (limit & 0xFFFF);
-
-    // Set the lower 4 bits of the granularity byte and
-    // the upper 4 bits of the granularity byte from the limit's upper 4 bits
     gdt[num].granularity = ((limit >> 16) & 0x0F) | (gran & 0xF0);
-
-    // Set the access byte
     gdt[num].access = access;
 }
 
-
-/* Function to install the GDT
- * Entries should be extended later to contain Privilege Level code and data 1(device drivers) and 3 - user level. */
+/* Set up the GDT */
 void setup_gdt() {
+    printf("Setting up GDT for higher half kernel...\n");
 
-    // Set the GDT limit to the size of the gdt array - 1
+    /* Set up GDT pointer */
     gp.limit = (sizeof(struct gdt_entry) * 3) - 1;
-
-    // Set the GDT base to the address of the gdt array
     gp.base = (uint32_t)&gdt;
 
-    // Set the first GDT entry as the null segment
-    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
+    /* NULL descriptor */
     gdt_set_entry(0, 0, 0, 0, 0);
 
-    // Set the second GDT entry as the code segment for privilege level 0
-    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
-    gdt_set_entry(1, 0, 0xFFFF, GDT_CODE_SEGMENT_PL0, 0xCF);
+    /* Code segment - covers all 4GB */
+    gdt_set_entry(1, 0, 0xFFFFFFFF, GDT_CODE_SEGMENT_PL0, 0xCF);
 
-    // Set the third GDT entry as the data segment for privilege level 0
-    // Reference: Intel Software Developer Manual, Volume 3, Section 3.4.5
-    gdt_set_entry(2, 0, 0xFFFF, GDT_DATA_SEGMENT_PL0, 0xCF);
+    /* Data segment - covers all 4GB */
+    gdt_set_entry(2, 0, 0xFFFFFFFF, GDT_DATA_SEGMENT_PL0, 0xCF);
 
-    // Load the GDT into the CPU
+    /* Load the GDT */
+    printf("GDT location: 0x%x\n", (uint32_t)&gp);
     __asm__ __volatile__("lgdt %0" : : "m" (gp));
 
-    // Reload the segment registers, see Section 3.5 of the SDM
+    /* Reload segment registers */
     __asm__ __volatile__("movl %0, %%eax\n"
                          "movw %%ax, %%ds\n"
                          "movw %%ax, %%es\n"
@@ -65,30 +48,30 @@ void setup_gdt() {
                          "movw %%ax, %%ss\n"
             : : "r"(GDT_KERNEL_DATA_SEGMENT_SELECTOR));
 
-    //Jump back to our code
+    /* Far jump to update CS register */
     __asm__ __volatile__("ljmp %0, $1f\n 1:\n" : : "i"(GDT_KERNEL_CODE_SEGMENT_SELECTOR));
 
-    // Self test of applying GDT table
+    printf("GDT loaded successfully. Running self test...\n");
 
-    printf("GDT should be set up. Running self test! \n");
-
+    /* Verify that segment registers were loaded correctly */
     unsigned short cs, gs, ds, es, fs, ss;
     __asm__ __volatile__("movw %%cs, %0" : "=r"(cs));
-    printf("CS selector value: %x, expected value: %x \n", cs, GDT_KERNEL_CODE_SEGMENT_SELECTOR);
+    printf("CS selector value: 0x%x, expected value: 0x%x\n", cs, GDT_KERNEL_CODE_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%gs, %0" : "=r"(gs));
-    printf("GS selector value: %x, expected value: %x \n", gs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("GS selector value: 0x%x, expected value: 0x%x\n", gs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%ds, %0" : "=r"(ds));
-    printf("DS selector value: %x, expected value: %x \n", ds, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("DS selector value: 0x%x, expected value: 0x%x\n", ds, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%es, %0" : "=r"(es));
-    printf("ES selector value: %x, expected value: %x \n", es, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("ES selector value: 0x%x, expected value: 0x%x\n", es, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%fs, %0" : "=r"(fs));
-    printf("FS selector value: %x, expected value: %x \n", fs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("FS selector value: 0x%x, expected value: 0x%x\n", fs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%ss, %0" : "=r"(ss));
-    printf("SS selector value: %x, expected value: %x \n", ss, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("SS selector value: 0x%x, expected value: 0x%x\n", ss, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
+    printf("GDT setup and test complete!\n");
 }

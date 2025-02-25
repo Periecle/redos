@@ -3,6 +3,31 @@
 
 #include <stdint.h>
 
+/* Define the virtual base address for kernel */
+#define KERNEL_VIRTUAL_BASE 0xC0000000
+
+/* VGA buffer physical address */
+#define VGA_BUFFER_PHYSICAL 0xB8000
+
+/* VGA buffer virtual address (used after paging is enabled) */
+#define VGA_BUFFER_VIRTUAL (VGA_BUFFER_PHYSICAL + KERNEL_VIRTUAL_BASE)
+
+/* Determine if paging is enabled by checking CR0 register */
+static inline int is_paging_enabled(void) {
+    uint32_t cr0;
+    __asm__ volatile("movl %%cr0, %0" : "=r"(cr0));
+    return (cr0 & 0x80000000) != 0; /* Check PG bit */
+}
+
+/* Get the appropriate VGA buffer address based on paging state */
+static inline uint16_t* get_vga_buffer(void) {
+    if (is_paging_enabled()) {
+        return (uint16_t*)VGA_BUFFER_VIRTUAL;
+    } else {
+        return (uint16_t*)VGA_BUFFER_PHYSICAL;
+    }
+}
+
 enum vga_color {
     VGA_COLOR_BLACK = 0,
     VGA_COLOR_BLUE = 1,

@@ -11,20 +11,7 @@ typedef __INT16_TYPE__ __int16;
 typedef __INT32_TYPE__ __int32;
 typedef __INT64_TYPE__ __int64;
 
-
-#define __INT8_C(x)  __INT8_C(x)
-#define __INT16_C(x) __INT16_C(x)
-#define __INT32_C(x) __INT32_C(x)
-#define __INT64_C(x) __INT64_C(x)
-
-#define __UINT8_C(x)  __UINT8_C(x)
-#define __UINT16_C(x) __UINT16_C(x)
-#define __UINT32_C(x) __UINT32_C(x)
-#define __UINT64_C(x) __UINT64_C(x)
-
-#define __INTMAX_C(x) __INTMAX_C(x)
-#define __UINTMAX_C(x) __UINTMAX_C(x)
-
+/* Remove redefinitions of compiler built-ins */
 #define __INT8_MAX  __INT8_MAX__
 #define __INT16_MAX __INT16_MAX__
 #define __INT32_MAX __INT32_MAX__
@@ -45,66 +32,54 @@ typedef __INT64_TYPE__ __int64;
 #if defined (__i386__)
 
 typedef __int8 __int_fast8;
-#define __INT_FAST8_C(x) __INT8_C(x)
 #define __INT_FAST8_MAX __INT8_MAX
 #define __INT_FAST8_MIN __INT8_MIN
 
 typedef __int32 __int_fast16;
-#define __INT_FAST16_C(x) __INT32_C(x)
 #define __INT_FAST16_MAX __INT32_MAX
 #define __INT_FAST16_MIN __INT32_MIN
 
 typedef __int32 __int_fast32;
-#define __INT_FAST32_C(x) __INT32_C(x)
 #define __INT_FAST32_MAX __INT32_MAX
 #define __INT_FAST32_MIN __INT32_MIN
 
 typedef __int64 __int_fast64;
-#define __INT_FAST64_C(x) __INT64_C(x)
 #define __INT_FAST64_MAX __INT64_MAX
 #define __INT_FAST64_MIN __INT64_MIN
 
 #elif defined (__x86_64__)
 
 typedef __int8 __int_fast8;
-#define __INT_FAST8_C(x) __INT8_C(x)
 #define __INT_FAST8_MAX __INT8_MAX
 #define __INT_FAST8_MIN __INT8_MIN
 
 typedef __int64 __int_fast16;
-#define __INT_FAST16_C(x) __INT64_C(x)
 #define __INT_FAST16_MAX __INT64_MAX
 #define __INT_FAST16_MIN __INT64_MIN
 
 typedef __int64 __int_fast32;
-#define __INT_FAST32_C(x) __INT64_C(x)
 #define __INT_FAST32_MAX __INT64_MAX
 #define __INT_FAST32_MIN __INT64_MIN
 
 typedef __int64 __int_fast64;
-#define __INT_FAST64_C(x) __INT64_C(x)
 #define __INT_FAST64_MAX __INT64_MAX
 #define __INT_FAST64_MIN __INT64_MIN
 
 #elif defined (__aarch64__)
 
 typedef __int8 __int_fast8;
-#define __INT_FAST8_C(x) __INT8_C(x)
 #define __INT_FAST8_MAX __INT8_MAX
 #define __INT_FAST8_MIN __INT8_MIN
 
 typedef __int64 __int_fast16;
-#define __INT_FAST16_C(x) __INT64_C(x)
 #define __INT_FAST16_MAX __INT64_MAX
 #define __INT_FAST16_MIN __INT64_MIN
 
 typedef __int64 __int_fast32;
-#define __INT_FAST32_C(x) __INT64_C(x)
 #define __INT_FAST32_MAX __INT64_MAX
 #define __INT_FAST32_MIN __INT64_MIN
 
 typedef __int64 __int_fast64;
-#define __INT_FAST64_C(x) __INT64_C(x)
 #define __INT_FAST64_MAX __INT64_MAX
 #define __INT_FAST64_MIN __INT64_MIN
 
@@ -117,66 +92,54 @@ typedef __int64 __int_fast64;
 #if defined (__i386__)
 
 typedef __uint8 __uint_fast8;
-#define __UINT_FAST8_C(x) __UINT8_C(x)
 #define __UINT_FAST8_MAX __UINT8_MAX
 #define __UINT_FAST8_MIN __UINT8_MIN
 
 typedef __uint32 __uint_fast16;
-#define __UINT_FAST16_C(x) __UINT32_C(x)
 #define __UINT_FAST16_MAX __UINT32_MAX
 #define __UINT_FAST16_MIN __UINT32_MIN
 
 typedef __uint32 __uint_fast32;
-#define __UINT_FAST32_C(x) __UINT32_C(x)
 #define __UINT_FAST32_MAX __UINT32_MAX
 #define __UINT_FAST32_MIN __UINT32_MIN
 
 typedef __uint64 __uint_fast64;
-#define __UINT_FAST64_C(x) __UINT64_C(x)
 #define __UINT_FAST64_MAX __UINT64_MAX
 #define __UINT_FAST64_MIN __UINT64_MIN
 
 #elif defined (__x86_64__)
 
 typedef __uint8 __uint_fast8;
-#define __UINT_FAST8_C(x) __UINT8_C(x)
 #define __UINT_FAST8_MAX __UINT8_MAX
 #define __UINT_FAST8_MIN __UINT8_MIN
 
 typedef __uint64 __uint_fast16;
-#define __UINT_FAST16_C(x) __UINT64_C(x)
 #define __UINT_FAST16_MAX __UINT64_MAX
 #define __UINT_FAST16_MIN __UINT64_MIN
 
 typedef __uint64 __uint_fast32;
-#define __UINT_FAST32_C(x) __UINT64_C(x)
 #define __UINT_FAST32_MAX __UINT64_MAX
 #define __UINT_FAST32_MIN __UINT64_MIN
 
 typedef __uint64 __uint_fast64;
-#define __UINT_FAST64_C(x) __UINT64_C(x)
 #define __UINT_FAST64_MAX __UINT64_MAX
 #define __UINT_FAST64_MIN __UINT64_MIN
 
 #elif defined (__aarch64__)
 
 typedef __uint8 __uint_fast8;
-#define __UINT_FAST8_C(x) __UINT8_C(x)
 #define __UINT_FAST8_MAX __UINT8_MAX
 #define __UINT_FAST8_MIN __UINT8_MIN
 
 typedef __uint64 __uint_fast16;
-#define __UINT_FAST16_C(x) __UINT64_C(x)
 #define __UINT_FAST16_MAX __UINT64_MAX
 #define __UINT_FAST16_MIN __UINT64_MIN
 
 typedef __uint64 __uint_fast32;
-#define __UINT_FAST32_C(x) __UINT64_C(x)
 #define __UINT_FAST32_MAX __UINT64_MAX
 #define __UINT_FAST32_MIN __UINT64_MIN
 
 typedef __uint64 __uint_fast64;
-#define __UINT_FAST64_C(x) __UINT64_C(x)
 #define __UINT_FAST64_MAX __UINT64_MAX
 #define __UINT_FAST64_MIN __UINT64_MIN
 
