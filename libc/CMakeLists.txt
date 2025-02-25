@@ -21,6 +21,7 @@ add_library(libk STATIC ${LIBC_SOURCES})
 target_include_directories(libk PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/kernel/include
+    ${CMAKE_SOURCE_DIR}/kernel/arch/i386
 )
 
 # Define a macro to mark the build as for libc.

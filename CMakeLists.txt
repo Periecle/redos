@@ -21,6 +21,9 @@ set(BOOTDIR ${SYSROOT}/boot)
 set(ISODIR ${CMAKE_BINARY_DIR}/isodir)
 set(ISO_FILE ${CMAKE_BINARY_DIR}/redos.iso)
 
+# Serial log file path
+set(SERIAL_LOG_FILE ${CMAKE_BINARY_DIR}/serial.log)
+
 # Custom target: Build ISO image using grub2-mkrescue.
 add_custom_target(iso ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory ${ISODIR}/boot/grub
@@ -32,9 +35,43 @@ add_custom_target(iso ALL
   COMMENT "Generating bootable ISO image"
 )
 
-# Custom target: Run QEMU.
+# Custom target: Run QEMU without serial logging.
 add_custom_target(qemu
   COMMAND qemu-system-i386 -cdrom ${ISO_FILE}
   DEPENDS iso
-  COMMENT "Launching QEMU with the generated ISO"
+  COMMENT "Launching QEMU with the generated ISO (no serial logging)"
+)
+
+# Custom target: Run QEMU with serial logging to file.
+add_custom_target(qemu-serial
+  COMMAND ${CMAKE_COMMAND} -E echo "Starting QEMU with serial output redirected to ${SERIAL_LOG_FILE}"
+  COMMAND qemu-system-i386 -cdrom ${ISO_FILE} -serial file:${SERIAL_LOG_FILE}
+  DEPENDS iso
+  COMMENT "Launching QEMU with serial output redirected to file"
+)
+
+# Custom target: Run QEMU with serial logging to console.
+add_custom_target(qemu-serial-console
+  COMMAND qemu-system-i386 -cdrom ${ISO_FILE} -serial mon:stdio
+  DEPENDS iso
+  COMMENT "Launching QEMU with serial output redirected to console"
+)
+
+# Custom target: Run QEMU with serial logging and options for debugging.
+add_custom_target(qemu-debug
+  COMMAND qemu-system-i386 -cdrom ${ISO_FILE} -serial file:${SERIAL_LOG_FILE} -d int,cpu_reset -no-reboot
+  DEPENDS iso
+  COMMENT "Launching QEMU in debug mode with serial logging"
+)
+
+# Custom target: Clear the serial log file.
+add_custom_target(clear-log
+  COMMAND ${CMAKE_COMMAND} -E remove -f ${SERIAL_LOG_FILE}
+  COMMENT "Clearing serial log file"
+)
+
+# Custom target: View the serial log file (uses the 'cat' command on Unix-like systems).
+add_custom_target(view-log
+  COMMAND cat ${SERIAL_LOG_FILE}
+  COMMENT "Viewing serial log file"
 )
