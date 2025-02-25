@@ -39,10 +39,10 @@ void dump_registers(void) {
 
     /* Print register values */
     debug_error("Register dump:");
-    debug_error("EAX: 0x%x    EBX: 0x%x    ECX: 0x%x    EDX: 0x%x", eax, ebx, ecx, edx);
-    debug_error("ESI: 0x%x    EDI: 0x%x    EBP: 0x%x    ESP: 0x%x", esi, edi, ebp, esp);
-    debug_error("EIP: 0x%x    EFLAGS: 0x%x", eip, eflags);
-    debug_error("CR0: 0x%x    CR2: 0x%x    CR3: 0x%x    CR4: 0x%x", cr0, cr2, cr3, cr4);
+    debug_error("EAX: %x    EBX: %x    ECX: %x    EDX: %x", eax, ebx, ecx, edx);
+    debug_error("ESI: %x    EDI: %x    EBP: %x    ESP: %x", esi, edi, ebp, esp);
+    debug_error("EIP: %x    EFLAGS: %x", eip, eflags);
+    debug_error("CR0: %x    CR2: %x    CR3: %x    CR4: %x", cr0, cr2, cr3, cr4);
 }
 
 /* Kernel panic handler - prints message and halts */
@@ -126,9 +126,9 @@ void exception_handler(uint32_t exception_number, uint32_t error_code) {
 
     /* Call panic with the exception information */
     if (exception_number < sizeof(exception_names) / sizeof(exception_names[0])) {
-        panicf("Exception %d (%s), Error Code: 0x%x",
+        panicf("Exception %d (%s), Error Code: %x",
               exception_number, exception_names[exception_number], error_code);
     } else {
-        panicf("Unknown Exception %d, Error Code: 0x%x", exception_number, error_code);
+        panicf("Unknown Exception %d, Error Code: %x", exception_number, error_code);
     }
 }

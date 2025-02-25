@@ -43,7 +43,7 @@ Use the appropriate function for your log level:
 debug_error("Critical error: %s", error_message);
 debug_warning("Warning: %s", warning_message);
 debug_info("System initialized with %d MB RAM", ram_mb);
-debug_debug("Memory area: 0x%x - 0x%x", start_addr, end_addr);
+debug_debug("Memory area: %x - %x", start_addr, end_addr);
 debug_trace("Function entered with args: %d, %d", arg1, arg2);
 ```
 

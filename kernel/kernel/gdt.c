@@ -36,7 +36,7 @@ void setup_gdt() {
     gdt_set_entry(2, 0, 0xFFFFFFFF, GDT_DATA_SEGMENT_PL0, 0xCF);
 
     /* Load the GDT */
-    printf("GDT location: 0x%x\n", (uint32_t)&gp);
+    printf("GDT location: %x\n", (uint32_t)&gp);
     __asm__ __volatile__("lgdt %0" : : "m" (gp));
 
     /* Reload segment registers */
@@ -56,22 +56,22 @@ void setup_gdt() {
     /* Verify that segment registers were loaded correctly */
     unsigned short cs, gs, ds, es, fs, ss;
     __asm__ __volatile__("movw %%cs, %0" : "=r"(cs));
-    printf("CS selector value: 0x%x, expected value: 0x%x\n", cs, GDT_KERNEL_CODE_SEGMENT_SELECTOR);
+    printf("CS selector value: %x, expected value: %x\n", cs, GDT_KERNEL_CODE_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%gs, %0" : "=r"(gs));
-    printf("GS selector value: 0x%x, expected value: 0x%x\n", gs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("GS selector value: %x, expected value: %x\n", gs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%ds, %0" : "=r"(ds));
-    printf("DS selector value: 0x%x, expected value: 0x%x\n", ds, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("DS selector value: %x, expected value: %x\n", ds, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%es, %0" : "=r"(es));
-    printf("ES selector value: 0x%x, expected value: 0x%x\n", es, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("ES selector value: %x, expected value: %x\n", es, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%fs, %0" : "=r"(fs));
-    printf("FS selector value: 0x%x, expected value: 0x%x\n", fs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("FS selector value: %x, expected value: %x\n", fs, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     __asm__ __volatile__("movw %%ss, %0" : "=r"(ss));
-    printf("SS selector value: 0x%x, expected value: 0x%x\n", ss, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
+    printf("SS selector value: %x, expected value: %x\n", ss, GDT_KERNEL_DATA_SEGMENT_SELECTOR);
 
     printf("GDT setup and test complete!\n");
 }

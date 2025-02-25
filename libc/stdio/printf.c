@@ -5,27 +5,20 @@
 #include <string.h>
 
 extern void serial_com1_write_byte(unsigned char byte);
-
-/* Global flag to indicate if serial output is enabled */
 static bool serial_output_enabled = false;
 
-/* Enable serial output for printf */
 void printf_enable_serial(bool enable) {
     serial_output_enabled = enable;
 }
 
 extern bool terminal_is_serial_enabled(void);
 
-
 static bool print(const char *data, size_t length) {
     const unsigned char *bytes = (const unsigned char *) data;
     for (size_t i = 0; i < length; i++) {
         if (putchar(bytes[i]) == EOF)
             return false;
-
-        /* Output to serial if enabled */
         if (serial_output_enabled && !terminal_is_serial_enabled()) {
-            /* Add CR before LF for serial terminals */
             if (bytes[i] == '\n') {
                 serial_com1_write_byte('\r');
             }
@@ -35,12 +28,91 @@ static bool print(const char *data, size_t length) {
     return true;
 }
 
+/* Helper function to convert integer to string */
+static int itoa(char *str, int num, int base) {
+    int i = 0;
+    bool is_negative = false;
+
+    /* Handle 0 explicitly */
+    if (num == 0) {
+        str[i++] = '0';
+        str[i] = '\0';
+        return i;
+    }
+
+    /* Handle negative numbers only for base 10 */
+    if (num < 0 && base == 10) {
+        is_negative = true;
+        num = -num;
+    }
+
+    /* Process individual digits */
+    while (num != 0) {
+        int rem = num % base;
+        str[i++] = (rem < 10) ? (rem + '0') : (rem - 10 + 'A');
+        num = num / base;
+    }
+
+    /* If negative, append '-' */
+    if (is_negative)
+        str[i++] = '-';
+
+    /* Reverse the string */
+    int start = 0;
+    int end = i - 1;
+    while (start < end) {
+        char temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        start++;
+        end--;
+    }
+
+    str[i] = '\0';
+    return i;
+}
+
+/* Helper function to convert unsigned integer to string */
+static int utoa(char *str, unsigned int num, int base) {
+    int i = 0;
+
+    /* Handle 0 explicitly */
+    if (num == 0) {
+        str[i++] = '0';
+        str[i] = '\0';
+        return i;
+    }
+
+    /* Process individual digits */
+    while (num != 0) {
+        int rem = num % base;
+        str[i++] = (rem < 10) ? (rem + '0') : (rem - 10 + 'A');
+        num = num / base;
+    }
+
+    /* Reverse the string */
+    int start = 0;
+    int end = i - 1;
+    while (start < end) {
+        char temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        start++;
+        end--;
+    }
+
+    str[i] = '\0';
+    return i;
+}
+
 int printf(const char *restrict format, ...) {
     va_list parameters;
     va_start(parameters, format);
     int written = 0;
+
     while (*format != '\0') {
         size_t maxrem = INT_MAX - written;
+
         if (format[0] != '%' || format[1] == '%') {
             if (format[0] == '%')
                 format++;
@@ -56,12 +128,12 @@ int printf(const char *restrict format, ...) {
             written += amount;
             continue;
         }
+
         const char *format_begun_at = format++;
-        const char zero = '0';
-        const char minus = '-';
+
         if (*format == 'c') {
             format++;
-            char c = (char) va_arg(parameters, int );
+            char c = (char) va_arg(parameters, int);
             if (!maxrem) {
                 return -1;
             }
@@ -71,6 +143,9 @@ int printf(const char *restrict format, ...) {
         } else if (*format == 's') {
             format++;
             const char *str = va_arg(parameters, const char*);
+            if (str == NULL) {
+                str = "(null)";
+            }
             size_t len = strlen(str);
             if (maxrem < len) {
                 return -1;
@@ -78,228 +153,85 @@ int printf(const char *restrict format, ...) {
             if (!print(str, len))
                 return -1;
             written += len;
-        } else if (*format == 'd') {
+        } else if (*format == 'd' || *format == 'i') {
             format++;
             int num = va_arg(parameters, int);
-            int i = 0, sign = 1;
-            if (num == 0) {
-                written++;
-                putchar(zero);
-                if (serial_output_enabled) {
-                    serial_com1_write_byte(zero);
-                }
-            }
-            if (num < 0) {
-                sign = -1;
-                num = -num;
-            }
-            char arr[32];
-            while (num > 0) {
-                arr[i++] = (num % 10) + '0';
-                num /= 10;
-                written++;
-            }
-            if (sign == -1) {
-                written++;
-                putchar(minus);
-                if (serial_output_enabled) {
-                    serial_com1_write_byte(minus);
-                }
-            }
-            while (i > 0) {
-                written++;
-                char c = arr[--i];
-                putchar(c);
-                if (serial_output_enabled) {
-                    serial_com1_write_byte(c);
-                }
-            }
-        } else if (*format == 'x') {
-            format++;
-            int num = va_arg(parameters, int);
-            int i = 0, sign = 1;
-            char arr[32];
 
-            if (num == 0) {
-                const char *hex_zero = "0x0";
-                written += 3;
-                if (!print(hex_zero, 3))
-                    return -1;
-            } else {
-                if (num < 0) {
-                    sign = -1;
-                    num = -num;
-                }
-                while (num > 0) {
-                    int rem = num % 16;
-                    if (rem < 10) {
-                        arr[i++] = rem + '0';
-                    } else {
-                        arr[i++] = rem - 10 + 'A';
-                    }
-                    num /= 16;
-                }
-                if (sign == -1) {
-                    written++;
-                    putchar('-');
-                    if (serial_output_enabled) {
-                        serial_com1_write_byte('-');
-                    }
-                }
-                putchar('0');
-                putchar('x');
-                written += 2;
-                if (serial_output_enabled) {
-                    serial_com1_write_byte('0');
-                    serial_com1_write_byte('x');
-                }
-                while (i > 0) {
-                    written++;
-                    char c = arr[--i];
-                    putchar(c);
-                    if (serial_output_enabled) {
-                        serial_com1_write_byte(c);
-                    }
-                }
+            char num_str[32];
+            int len = itoa(num_str, num, 10);
+
+            if (maxrem < (size_t)len) {
+                return -1;
             }
-        } else if (*format == 'o') {
+            if (!print(num_str, len))
+                return -1;
+            written += len;
+        } else if (*format == 'u') {
             format++;
-            int num = va_arg(parameters, int);
-            int i = 0, sign = 1;
-            char arr[32];
-            if (num == 0) {
-                written++;
-                putchar(zero);
-                if (serial_output_enabled) {
-                    serial_com1_write_byte(zero);
-                }
-            } else {
-                if (num < 0) {
-                    sign = -1;
-                    num = -num;
-                }
-                while (num > 0) {
-                    int rem = num % 8;
-                    arr[i++] = rem + '0';
-                    num /= 8;
-                }
-                if (sign == -1) {
-                    written++;
-                    putchar('-');
-                    if (serial_output_enabled) {
-                        serial_com1_write_byte('-');
-                    }
-                }
-                putchar('0');
-                written++;
-                if (serial_output_enabled) {
-                    serial_com1_write_byte('0');
-                }
-                while (i > 0) {
-                    written++;
-                    char c = arr[--i];
-                    putchar(c);
-                    if (serial_output_enabled) {
-                        serial_com1_write_byte(c);
-                    }
-                }
+            unsigned int num = va_arg(parameters, unsigned int);
+
+            char num_str[32];
+            int len = utoa(num_str, num, 10);
+
+            if (maxrem < (size_t)len) {
+                return -1;
             }
-        } else if (*format == 'f') {
+            if (!print(num_str, len))
+                return -1;
+            written += len;
+        } else if (*format == 'x' || *format == 'X') {
             format++;
-            double num = va_arg(parameters, double);
-            int sign = (num < 0) ? -1 : 1;
-            num *= sign;
-            int int_part = (int) num;
-            double dec_part = num - int_part;
-            int i = 0;
-            char arr[32];
-            if (sign == -1) {
-                written++;
-                putchar('-');
-                if (serial_output_enabled) {
-                    serial_com1_write_byte('-');
-                }
+            unsigned int num = va_arg(parameters, unsigned int);
+
+            char prefix[2] = {'0', 'x'};
+            if (maxrem < 2) {
+                return -1;
             }
-            if (int_part == 0) {
-                written++;
-                putchar('0');
-                if (serial_output_enabled) {
-                    serial_com1_write_byte('0');
-                }
+            if (!print(prefix, 2))
+                return -1;
+            written += 2;
+
+            char num_str[32];
+            int len = utoa(num_str, num, 16);
+
+            if (maxrem < (size_t)len + 2) {
+                return -1;
             }
-            while (int_part > 0) {
-                int rem = int_part % 10;
-                arr[i++] = rem + '0';
-                int_part /= 10;
-            }
-            while (i > 0) {
-                written++;
-                char c = arr[--i];
-                putchar(c);
-                if (serial_output_enabled) {
-                    serial_com1_write_byte(c);
-                }
-            }
-            if (dec_part > 0) {
-                putchar('.');
-                written++;
-                if (serial_output_enabled) {
-                    serial_com1_write_byte('.');
-                }
-                i = 0;
-                while (dec_part > 0 && i < 5) {
-                    dec_part *= 10;
-                    int d = (int) dec_part;
-                    arr[i++] = d + '0';
-                    dec_part -= d;
-                }
-                i = 0;
-                while (i < 5) {
-                    written++;
-                    char c = arr[i];
-                    putchar(c);
-                    if (serial_output_enabled) {
-                        serial_com1_write_byte(c);
-                    }
-                    arr[i++] = 0;
-                }
-            }
+            if (!print(num_str, len))
+                return -1;
+            written += len;
         } else if (*format == 'p') {
             format++;
-            void *pointer = va_arg(parameters, void*);
-            const char *nil = "nil";
-            if (pointer == NULL) {
-                written += 3;
-                if (!print(nil, 3))
+            void *ptr = va_arg(parameters, void*);
+
+            if (ptr == NULL) {
+                const char *nil = "(nil)";
+                size_t len = strlen(nil);
+                if (maxrem < len) {
                     return -1;
+                }
+                if (!print(nil, len))
+                    return -1;
+                written += len;
             } else {
-                unsigned long int num = (unsigned long int) pointer;
-                int i = 0;
-                char arr[32];
-                while (num > 0) {
-                    int rem = num % 16;
-                    if (rem < 10) {
-                        arr[i++] = rem + '0';
-                    } else {
-                        arr[i++] = rem - 10 + 'A';
-                    }
-                    num /= 16;
+                char prefix[2] = {'0', 'x'};
+                if (maxrem < 2) {
+                    return -1;
                 }
-                putchar('0');
-                putchar('x');
+                if (!print(prefix, 2))
+                    return -1;
                 written += 2;
-                if (serial_output_enabled) {
-                    serial_com1_write_byte('0');
-                    serial_com1_write_byte('x');
+
+                unsigned int ptr_val = (unsigned int)ptr;
+                char num_str[32];
+                int len = utoa(num_str, ptr_val, 16);
+
+                if (maxrem < (size_t)len + 2) {
+                    return -1;
                 }
-                while (i > 0) {
-                    written++;
-                    char c = arr[--i];
-                    putchar(c);
-                    if (serial_output_enabled) {
-                        serial_com1_write_byte(c);
-                    }
-                }
+                if (!print(num_str, len))
+                    return -1;
+                written += len;
             }
         } else {
             format = format_begun_at;
@@ -313,6 +245,7 @@ int printf(const char *restrict format, ...) {
             format += len;
         }
     }
+
     va_end(parameters);
     return written;
 }
