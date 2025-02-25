@@ -2,10 +2,15 @@
 #define _KERNEL_TTY_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 void terminal_initialize(void);
 void terminal_putchar(char c);
 void terminal_write(const char* data, size_t size);
 void terminal_writestring(const char* data);
+
+/* Serial output control for terminal functions */
+void terminal_enable_serial(bool enable);
+bool terminal_is_serial_enabled(void);
 
 #endif

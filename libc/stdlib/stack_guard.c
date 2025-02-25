@@ -15,6 +15,12 @@ void __stack_chk_fail(void)
 #if __STDC_HOSTED__
     abort();
 #elif __is_redos_kernel
+    /* Call the panic function, which doesn't return */
+    extern void panic(const char* message) __attribute__((noreturn));
     panic("Stack smashing detected");
+#else
+    /* In case there's no panic function available, just enter an infinite loop */
+    while (1) { }
+    __builtin_unreachable();
 #endif
 }

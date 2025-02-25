@@ -6,10 +6,13 @@ set(KERNEL_SOURCES
   arch/i386/crti.S
   arch/i386/crtn.S
   arch/i386/tty.c
+  arch/i386/serial.c
   kernel/gdt.c
   kernel/multiboot.c
   kernel/kernel.c
   kernel/paging.c
+  kernel/debug.c
+  kernel/panic.c
 )
 
 # Explicitly treat assembly files as such.

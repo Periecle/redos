@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <kernel/tty.h>
+#include "serial.h"
 #include "vga.h"
 
 static const size_t VGA_WIDTH = 80;
@@ -11,6 +12,16 @@ static size_t terminal_row;
 static size_t terminal_column;
 static uint8_t terminal_color;
 static uint16_t *terminal_buffer;
+
+static bool terminal_serial_output = false;
+
+void terminal_enable_serial(bool enable) {
+    terminal_serial_output = enable;
+}
+
+bool terminal_is_serial_enabled(void) {
+    return terminal_serial_output;
+}
 
 void terminal_initialize(void) {
     terminal_row = 0;
@@ -71,14 +82,32 @@ void scroll(void) {
 }
 
 void terminal_putchar(char c) {
+    /* Output to VGA */
     if (c == '\n') {
         terminal_column = 0;
         terminal_row++;
         if (terminal_row >= VGA_HEIGHT) {
             scroll();
         }
+
+        /* Output to serial port if enabled */
+        if (terminal_serial_output) {
+            serial_com1_write_byte('\r');
+            serial_com1_write_byte('\n');
+        }
         return;
     }
+
+    if (c == '\r') {
+        terminal_column = 0;
+
+        /* Output to serial port if enabled */
+        if (terminal_serial_output) {
+            serial_com1_write_byte('\r');
+        }
+        return;
+    }
+
     if (c == '\t') {
         terminal_column += 4;
         if (terminal_column >= VGA_WIDTH) {
@@ -88,8 +117,14 @@ void terminal_putchar(char c) {
                 scroll();
             }
         }
+
+        /* Output to serial port if enabled */
+        if (terminal_serial_output) {
+            serial_com1_write_byte('\t');
+        }
         return;
     }
+
     terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
     terminal_column++;
     if (terminal_column >= VGA_WIDTH) {
@@ -98,6 +133,11 @@ void terminal_putchar(char c) {
         if (terminal_row >= VGA_HEIGHT) {
             scroll();
         }
+    }
+
+    /* Output to serial port if enabled */
+    if (terminal_serial_output) {
+        serial_com1_write_byte(c);
     }
 }
 
