@@ -2,15 +2,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-
 #include <kernel/tty.h>
-
 #include "vga.h"
 
 static const size_t VGA_WIDTH = 80;
 static const size_t VGA_HEIGHT = 25;
-static uint16_t *const VGA_MEMORY = (uint16_t *) 0xB8000;
-
 static size_t terminal_row;
 static size_t terminal_column;
 static uint8_t terminal_color;
@@ -20,13 +16,37 @@ void terminal_initialize(void) {
     terminal_row = 0;
     terminal_column = 0;
     terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    terminal_buffer = VGA_MEMORY;
+
+    // Use our helper function to get the right VGA buffer address
+    terminal_buffer = get_vga_buffer();
+
+    // Print initialization message to debug
+    const char* paging_status = is_paging_enabled() ? "ENABLED" : "DISABLED";
+
     for (size_t y = 0; y < VGA_HEIGHT; y++) {
         for (size_t x = 0; x < VGA_WIDTH; x++) {
             const size_t index = y * VGA_WIDTH + x;
             terminal_buffer[index] = vga_entry(' ', terminal_color);
         }
     }
+
+    // Output some debug info about our terminal initialization
+    terminal_writestring("Terminal initialized with paging ");
+    terminal_writestring(paging_status);
+    terminal_writestring("\nVGA buffer address: ");
+
+    // Print the address in hex (simple implementation)
+    char hex_buffer[20] = "0x";
+    uint32_t addr = (uint32_t)terminal_buffer;
+
+    for (int i = 7; i >= 0; i--) {
+        uint8_t nibble = (addr >> (i * 4)) & 0xF;
+        hex_buffer[9-i] = nibble < 10 ? '0' + nibble : 'A' + (nibble - 10);
+    }
+    hex_buffer[10] = '\0';
+
+    terminal_writestring(hex_buffer);
+    terminal_writestring("\n");
 }
 
 void terminal_setcolor(uint8_t color) {
@@ -39,11 +59,9 @@ void terminal_putentryat(unsigned char c, uint8_t color, size_t x, size_t y) {
 }
 
 void scroll(void) {
-    /* Move rows 1 through (VGA_HEIGHT - 1) to row 0 */
     memmove(terminal_buffer,
             terminal_buffer + VGA_WIDTH,
             sizeof(uint16_t) * VGA_WIDTH * (VGA_HEIGHT - 1));
-    /* Clear the last line */
     memset(terminal_buffer + VGA_WIDTH * (VGA_HEIGHT - 1),
            0,
            sizeof(uint16_t) * VGA_WIDTH);

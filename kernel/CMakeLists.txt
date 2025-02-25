@@ -9,6 +9,7 @@ set(KERNEL_SOURCES
   kernel/gdt.c
   kernel/multiboot.c
   kernel/kernel.c
+  kernel/paging.c
 )
 
 # Explicitly treat assembly files as such.
