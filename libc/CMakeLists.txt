@@ -18,7 +18,10 @@ set(LIBC_SOURCES
 add_library(libk STATIC ${LIBC_SOURCES})
 
 # Include libc headers.
-target_include_directories(libk PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(libk PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/kernel/include
+)
 
 # Define a macro to mark the build as for libc.
 target_compile_definitions(libk PUBLIC __is_libc)

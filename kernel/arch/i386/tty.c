@@ -38,25 +38,25 @@ void terminal_putentryat(unsigned char c, uint8_t color, size_t x, size_t y) {
     terminal_buffer[index] = vga_entry(c, color);
 }
 
-void scroll() {
-    /* Calculate the address of the previous line */
-    void *previous_line = terminal_buffer + (VGA_HEIGHT - 1) * VGA_WIDTH;
-
-    /* Move the entire screen buffer up one line */
-    memmove(terminal_buffer, terminal_buffer + VGA_WIDTH, sizeof(uint16_t) * VGA_WIDTH * VGA_HEIGHT);
-
-    /* Clear the previous line with empty spaces */
-    memset(previous_line, 0, sizeof(uint16_t) * (VGA_WIDTH));
-
-    /* Decrement the terminal row so that the next character will be printed on the last line */
-    terminal_row--;
+void scroll(void) {
+    /* Move rows 1 through (VGA_HEIGHT - 1) to row 0 */
+    memmove(terminal_buffer,
+            terminal_buffer + VGA_WIDTH,
+            sizeof(uint16_t) * VGA_WIDTH * (VGA_HEIGHT - 1));
+    /* Clear the last line */
+    memset(terminal_buffer + VGA_WIDTH * (VGA_HEIGHT - 1),
+           0,
+           sizeof(uint16_t) * VGA_WIDTH);
+    if (terminal_row > 0) {
+        terminal_row--;
+    }
 }
 
 void terminal_putchar(char c) {
-    unsigned char uc = c;
     if (c == '\n') {
         terminal_column = 0;
-        if (++terminal_row == VGA_HEIGHT) {
+        terminal_row++;
+        if (terminal_row >= VGA_HEIGHT) {
             scroll();
         }
         return;
@@ -65,16 +65,19 @@ void terminal_putchar(char c) {
         terminal_column += 4;
         if (terminal_column >= VGA_WIDTH) {
             terminal_column = 0;
-            if (++terminal_row == VGA_HEIGHT - 1) {
+            terminal_row++;
+            if (terminal_row >= VGA_HEIGHT) {
                 scroll();
             }
         }
         return;
     }
-    terminal_putentryat(uc, terminal_color, terminal_column, terminal_row);
-    if (++terminal_column == VGA_WIDTH) {
+    terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+    terminal_column++;
+    if (terminal_column >= VGA_WIDTH) {
         terminal_column = 0;
-        if (++terminal_row == VGA_HEIGHT - 1) {
+        terminal_row++;
+        if (terminal_row >= VGA_HEIGHT) {
             scroll();
         }
     }
