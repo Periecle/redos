@@ -1,10 +1,10 @@
-#ifndef ARCH_I386_VGA_H
-#define ARCH_I386_VGA_H
+#ifndef ARCH_X86_64_VGA_H
+#define ARCH_X86_64_VGA_H
 
 #include <stdint.h>
 
 /* Define the virtual base address for kernel */
-#define KERNEL_VIRTUAL_BASE 0xC0000000
+#define KERNEL_VIRTUAL_BASE 0xFFFFFFFF80000000
 
 /* VGA buffer physical address */
 #define VGA_BUFFER_PHYSICAL 0xB8000
@@ -14,8 +14,8 @@
 
 /* Determine if paging is enabled by checking CR0 register */
 static inline int is_paging_enabled(void) {
-    uint32_t cr0;
-    __asm__ volatile("movl %%cr0, %0" : "=r"(cr0));
+    uint64_t cr0;
+    __asm__ volatile("movq %%cr0, %0" : "=r"(cr0));
     return (cr0 & 0x80000000) != 0; /* Check PG bit */
 }
 

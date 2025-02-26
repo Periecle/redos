@@ -5,44 +5,56 @@
 
 /* Function to dump registers for debugging (called by panic handlers) */
 void dump_registers(void) {
-    uint32_t eax, ebx, ecx, edx, esi, edi, ebp, esp, eflags;
-    uint32_t cr0, cr2, cr3, cr4;
+    uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp, r8, r9, r10, r11, r12, r13, r14, r15, rflags;
+    uint64_t cr0, cr2, cr3, cr4;
 
     /* Get general purpose registers */
     __asm__ volatile (
-        "movl %%eax, %0\n"
-        "movl %%ebx, %1\n"
-        "movl %%ecx, %2\n"
-        "movl %%edx, %3\n"
-        "movl %%esi, %4\n"
-        "movl %%edi, %5\n"
-        "movl %%ebp, %6\n"
-        "movl %%esp, %7\n"
-        "pushfl\n"
-        "popl %8\n"
-        : "=m"(eax), "=m"(ebx), "=m"(ecx), "=m"(edx),
-          "=m"(esi), "=m"(edi), "=m"(ebp), "=m"(esp),
-          "=m"(eflags)
+        "movq %%rax, %0\n"
+        "movq %%rbx, %1\n"
+        "movq %%rcx, %2\n"
+        "movq %%rdx, %3\n"
+        "movq %%rsi, %4\n"
+        "movq %%rdi, %5\n"
+        "movq %%rbp, %6\n"
+        "movq %%rsp, %7\n"
+        "movq %%r8, %8\n"
+        "movq %%r9, %9\n"
+        "movq %%r10, %10\n"
+        "movq %%r11, %11\n"
+        "movq %%r12, %12\n"
+        "movq %%r13, %13\n"
+        "movq %%r14, %14\n"
+        "movq %%r15, %15\n"
+        "pushfq\n"
+        "popq %16\n"
+        : "=m"(rax), "=m"(rbx), "=m"(rcx), "=m"(rdx),
+          "=m"(rsi), "=m"(rdi), "=m"(rbp), "=m"(rsp),
+          "=m"(r8), "=m"(r9), "=m"(r10), "=m"(r11),
+          "=m"(r12), "=m"(r13), "=m"(r14), "=m"(r15),
+          "=m"(rflags)
         :
         : "memory"
     );
 
     /* Get control registers separately to avoid assembly errors */
-    __asm__ volatile ("movl %%cr0, %%eax; movl %%eax, %0" : "=m"(cr0) : : "eax");
-    __asm__ volatile ("movl %%cr2, %%eax; movl %%eax, %0" : "=m"(cr2) : : "eax");
-    __asm__ volatile ("movl %%cr3, %%eax; movl %%eax, %0" : "=m"(cr3) : : "eax");
-    __asm__ volatile ("movl %%cr4, %%eax; movl %%eax, %0" : "=m"(cr4) : : "eax");
+    __asm__ volatile ("movq %%cr0, %%rax; movq %%rax, %0" : "=m"(cr0) : : "rax");
+    __asm__ volatile ("movq %%cr2, %%rax; movq %%rax, %0" : "=m"(cr2) : : "rax");
+    __asm__ volatile ("movq %%cr3, %%rax; movq %%rax, %0" : "=m"(cr3) : : "rax");
+    __asm__ volatile ("movq %%cr4, %%rax; movq %%rax, %0" : "=m"(cr4) : : "rax");
 
-    /* Get approximate EIP (this will be the address of the label below) */
-    uint32_t eip;
-    __asm__ volatile ("1: movl $1b, %0" : "=r"(eip));
+    /* Get approximate RIP (this will be the address of the label below) */
+    uint64_t rip;
+    __asm__ volatile ("leaq 1f(%%rip), %0; 1:" : "=r"(rip));
 
     /* Print register values */
     debug_error("Register dump:");
-    debug_error("EAX: %x    EBX: %x    ECX: %x    EDX: %x", eax, ebx, ecx, edx);
-    debug_error("ESI: %x    EDI: %x    EBP: %x    ESP: %x", esi, edi, ebp, esp);
-    debug_error("EIP: %x    EFLAGS: %x", eip, eflags);
-    debug_error("CR0: %x    CR2: %x    CR3: %x    CR4: %x", cr0, cr2, cr3, cr4);
+    debug_error("RAX: %lx    RBX: %lx    RCX: %lx    RDX: %lx", rax, rbx, rcx, rdx);
+    debug_error("RSI: %lx    RDI: %lx    RBP: %lx    RSP: %lx", rsi, rdi, rbp, rsp);
+    debug_error("R8:  %lx    R9:  %lx    R10: %lx    R11: %lx", r8, r9, r10, r11);
+    debug_error("R12: %lx    R13: %lx    R14: %lx    R15: %lx", r12, r13, r14, r15);
+    debug_error("RIP: %lx    RFLAGS: %lx", rip, rflags);
+    debug_error("CR0: %lx    CR2: %lx    CR3: %lx    CR4: %lx", cr0, cr2, cr3, cr4);
 }
 
 /* Kernel panic handler - prints message and halts */
@@ -95,7 +107,7 @@ void panicf(const char* format, ...) {
 
 /* Handler for unhandled exceptions */
 __attribute__((noreturn))
-void exception_handler(uint32_t exception_number, uint32_t error_code) {
+void exception_handler(uint64_t exception_number, uint64_t error_code) {
     /* Define exception names */
     static const char* exception_names[] = {
         "Divide Error",
@@ -126,9 +138,9 @@ void exception_handler(uint32_t exception_number, uint32_t error_code) {
 
     /* Call panic with the exception information */
     if (exception_number < sizeof(exception_names) / sizeof(exception_names[0])) {
-        panicf("Exception %d (%s), Error Code: %x",
+        panicf("Exception %lu (%s), Error Code: %lx",
               exception_number, exception_names[exception_number], error_code);
     } else {
-        panicf("Unknown Exception %d, Error Code: %x", exception_number, error_code);
+        panicf("Unknown Exception %lu, Error Code: %lx", exception_number, error_code);
     }
 }

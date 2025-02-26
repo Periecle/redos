@@ -6,24 +6,24 @@
 #include <kernel/debug.h>
 #include <kernel/panic.h>
 
-extern uint32_t kernel_virtual_start;
-extern uint32_t kernel_virtual_end;
-extern uint32_t kernel_physical_start;
-extern uint32_t kernel_physical_end;
+extern uint64_t kernel_virtual_start;
+extern uint64_t kernel_virtual_end;
+extern uint64_t kernel_physical_start;
+extern uint64_t kernel_physical_end;
 
 void init_paging(void);
 void print_paging_info(void);
 extern void putchar_enable_serial(bool enable);
 extern void printf_enable_serial(bool enable);
 
-#define KERNEL_VIRTUAL_BASE 0xC0000000
+#define KERNEL_VIRTUAL_BASE 0xFFFFFFFF80000000
 
 /**
  * Check if an address is in the higher half of memory (kernel space)
  * @param addr Address to check
  * @return true if address is in higher half, false otherwise
  */
-static inline int is_higher_half_address(uint32_t addr) {
+static inline int is_higher_half_address(uint64_t addr) {
     return addr >= KERNEL_VIRTUAL_BASE;
 }
 
@@ -32,12 +32,12 @@ static inline int is_higher_half_address(uint32_t addr) {
  */
 void print_kernel_memory_layout(void) {
     printf("Kernel Memory Layout:\n");
-    printf("  Virtual Start:  %x\n", (unsigned)&kernel_virtual_start);
-    printf("  Virtual End:    %x\n", (unsigned)&kernel_virtual_end);
-    printf("  Physical Start: %x\n", (unsigned)&kernel_physical_start);
-    printf("  Physical End:   %x\n", (unsigned)&kernel_physical_end);
-    printf("  Virtual Size:   %u KB\n",
-        (unsigned)(&kernel_virtual_end - &kernel_virtual_start) / 1024);
+    printf("  Virtual Start:  %lx\n", (unsigned long)&kernel_virtual_start);
+    printf("  Virtual End:    %lx\n", (unsigned long)&kernel_virtual_end);
+    printf("  Physical Start: %lx\n", (unsigned long)&kernel_physical_start);
+    printf("  Physical End:   %lx\n", (unsigned long)&kernel_physical_end);
+    printf("  Virtual Size:   %lu KB\n",
+        (unsigned long)(&kernel_virtual_end - &kernel_virtual_start) / 1024);
 }
 
 /**
@@ -65,17 +65,17 @@ void test_memory_mapping(void) {
     void* page2 = kmalloc_physical_page();
     void* page3 = kmalloc_physical_page();
 
-    printf("  Allocated page 1 at physical: %x, virtual: %x\n",
-        (unsigned)page1, (unsigned)P2V(page1));
-    printf("  Allocated page 2 at physical: %x, virtual: %x\n",
-        (unsigned)page2, (unsigned)P2V(page2));
-    printf("  Allocated page 3 at physical: %x, virtual: %x\n",
-        (unsigned)page3, (unsigned)P2V(page3));
+    printf("  Allocated page 1 at physical: %lx, virtual: %lx\n",
+        (unsigned long)page1, (unsigned long)P2V(page1));
+    printf("  Allocated page 2 at physical: %lx, virtual: %lx\n",
+        (unsigned long)page2, (unsigned long)P2V(page2));
+    printf("  Allocated page 3 at physical: %lx, virtual: %lx\n",
+        (unsigned long)page3, (unsigned long)P2V(page3));
 
     // Choose a test virtual address in user space (not kernel)
-    void* test_virt_addr = (void*)0xD0000000;
-    printf("  Mapping virtual %x to physical %x\n",
-        (unsigned)test_virt_addr, (unsigned)page1);
+    void* test_virt_addr = (void*)0x00000000D0000000;
+    printf("  Mapping virtual %lx to physical %lx\n",
+        (unsigned long)test_virt_addr, (unsigned long)page1);
 
     // Map the virtual address to the physical page
     map_page_to_frame(test_virt_addr, page1, PAGE_PRESENT | PAGE_WRITE);
@@ -85,18 +85,18 @@ void test_memory_mapping(void) {
     printf("  Writing test pattern to mapped memory...\n");
 
     // Write a known pattern
-    uint32_t* test_ptr = (uint32_t*)test_virt_addr;
-    *test_ptr = 0xDEADBEEF;
+    uint64_t* test_ptr = (uint64_t*)test_virt_addr;
+    *test_ptr = 0xDEADBEEFDEADBEEF;
 
     // Flush the TLB to ensure the mapping is active
-    flush_tlb_entry((uint32_t)test_virt_addr);
+    flush_tlb_entry((uint64_t)test_virt_addr);
 
     // Read back and verify
-    uint32_t read_value = *test_ptr;
-    printf("  Reading back value: %x (expected 0xDEADBEEF)\n", read_value);
+    uint64_t read_value = *test_ptr;
+    printf("  Reading back value: %lx (expected 0xDEADBEEFDEADBEEF)\n", read_value);
 
-    if (read_value != 0xDEADBEEF) {
-        debug_error("Memory test failed! Expected 0xDEADBEEF, got %x", read_value);
+    if (read_value != 0xDEADBEEFDEADBEEF) {
+        debug_error("Memory test failed! Expected 0xDEADBEEFDEADBEEF, got %lx", read_value);
     } else {
         debug_info("Memory test passed successfully");
     }
@@ -104,7 +104,7 @@ void test_memory_mapping(void) {
     // Clean up
     debug_debug("Cleaning up test allocations");
     printf("\nCleaning up test allocations:\n");
-    printf("  Unmapping virtual address %x\n", (unsigned)test_virt_addr);
+    printf("  Unmapping virtual address %lx\n", (unsigned long)test_virt_addr);
     unmap_page(test_virt_addr);
 
     printf("  Freeing physical pages\n");
@@ -131,18 +131,18 @@ void kernel_main(void) {
     debug_set_target(DEBUG_TARGET_ALL);
 
     // Welcome messages
-    debug_info("RedOS kernel starting...");
+    debug_info("RedOS 64-bit kernel starting...");
     debug_info("Serial debugging enabled");
 
     // Test the debug output system
     test_debugging_levels();
 
     // Display kernel main address
-    printf("Kernel Main function called at virtual address %x!\n", (unsigned)&kernel_main);
+    printf("Kernel Main function called at virtual address %lx!\n", (unsigned long)&kernel_main);
 
     // Check if kernel is running in higher half
-    if (is_higher_half_address((unsigned)&kernel_main)) {
-        debug_info("Kernel is running in the higher half (0xC0000000+)");
+    if (is_higher_half_address((unsigned long)&kernel_main)) {
+        debug_info("Kernel is running in the higher half (0xFFFFFFFF80000000+)");
     } else {
         debug_error("Kernel is NOT running in the higher half!");
         panic("Kernel not in higher half");
@@ -175,6 +175,6 @@ void kernel_main(void) {
     debug_info("This message should appear in both VGA and serial log");
 
     // Final boot success message
-    debug_info("RedOS successfully booted in higher half mode!");
-    printf("\nRedOS successfully booted in higher half mode!\n");
+    debug_info("RedOS 64-bit successfully booted in higher half mode!");
+    printf("\nRedOS 64-bit successfully booted in higher half mode!\n");
 }

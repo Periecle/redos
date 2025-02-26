@@ -46,15 +46,15 @@ void terminal_initialize(void) {
     terminal_writestring(paging_status);
     terminal_writestring("\nVGA buffer address: ");
 
-    // Print the address in hex (simple implementation)
+    /* Print the address in hex (simple implementation) */
     char hex_buffer[20] = "0x";
-    uint32_t addr = (uint32_t)terminal_buffer;
+    uint64_t addr = (uint64_t)terminal_buffer;
 
-    for (int i = 7; i >= 0; i--) {
+    for (int i = 15; i >= 0; i--) {  // Process all 16 hex digits (64 bits)
         uint8_t nibble = (addr >> (i * 4)) & 0xF;
-        hex_buffer[9-i] = nibble < 10 ? '0' + nibble : 'A' + (nibble - 10);
+        hex_buffer[17-i] = nibble < 10 ? '0' + nibble : 'A' + (nibble - 10);
     }
-    hex_buffer[10] = '\0';
+    hex_buffer[18] = '\0';
 
     terminal_writestring(hex_buffer);
     terminal_writestring("\n");

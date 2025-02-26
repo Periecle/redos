@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.10)
 project(kernel C)
 
 set(KERNEL_SOURCES
-  arch/i386/boot.S
-  arch/i386/crti.S
-  arch/i386/crtn.S
-  arch/i386/tty.c
-  arch/i386/serial.c
+  arch/x86_64/boot.S
+  arch/x86_64/crti.S
+  arch/x86_64/crtn.S
+  arch/x86_64/tty.c
+  arch/x86_64/serial.c
   kernel/gdt.c
   kernel/multiboot.c
   kernel/kernel.c
@@ -16,9 +16,9 @@ set(KERNEL_SOURCES
 )
 
 # Explicitly treat assembly files as such.
-set_source_files_properties(arch/i386/boot.S PROPERTIES LANGUAGE ASM)
-set_source_files_properties(arch/i386/crti.S PROPERTIES LANGUAGE ASM)
-set_source_files_properties(arch/i386/crtn.S PROPERTIES LANGUAGE ASM)
+set_source_files_properties(arch/x86_64/boot.S PROPERTIES LANGUAGE ASM)
+set_source_files_properties(arch/x86_64/crti.S PROPERTIES LANGUAGE ASM)
+set_source_files_properties(arch/x86_64/crtn.S PROPERTIES LANGUAGE ASM)
 
 # Include kernel headers and the libc freestanding headers.
 include_directories(
@@ -37,7 +37,7 @@ target_link_libraries(redos.kernel PRIVATE libk)
 # -nostdlib, -nodefaultlibs, -nostartfiles: Prevent inclusion of standard runtime libraries and startup files.
 # -lgcc: Link in the gcc support library.
 target_link_options(redos.kernel PRIVATE
-  "-T${CMAKE_CURRENT_SOURCE_DIR}/arch/i386/linker.ld"
+  "-T${CMAKE_CURRENT_SOURCE_DIR}/arch/x86_64/linker.ld"
   "-nostdlib"
   "-nodefaultlibs"
   "-nostartfiles"

@@ -1,6 +1,6 @@
 # Redos
 
-Redos is an educational monolithic operating system for x86 architecture.
+Redos is an educational monolithic operating system for x86_64 architecture.
 
 ## Installation
 

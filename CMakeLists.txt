@@ -3,7 +3,7 @@ project(RedosOS C ASM)
 
 # Global compile options for a freestanding build.
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -ffreestanding -Wall -Wextra -fstack-protector-strong")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -ffreestanding -Wall -Wextra -fstack-protector-strong -mcmodel=kernel")
 
 # Set output directories.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -28,8 +28,13 @@ set(SERIAL_LOG_FILE ${CMAKE_BINARY_DIR}/serial.log)
 add_custom_target(iso ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory ${ISODIR}/boot/grub
   COMMAND ${CMAKE_COMMAND} -E copy ${BOOTDIR}/redos.kernel ${ISODIR}/boot/redos.kernel
-  # Write a simple GRUB configuration file.
-  COMMAND ${CMAKE_COMMAND} -E echo "menuentry \"redos\" { multiboot2 /boot/redos.kernel }" > ${ISODIR}/boot/grub/grub.cfg
+  # Write a proper GRUB configuration file for Multiboot2
+  COMMAND ${CMAKE_COMMAND} -E echo "set timeout=0" > ${ISODIR}/boot/grub/grub.cfg
+  COMMAND ${CMAKE_COMMAND} -E echo "set default=0" >> ${ISODIR}/boot/grub/grub.cfg
+  COMMAND ${CMAKE_COMMAND} -E echo "menuentry \"RedOS\" {" >> ${ISODIR}/boot/grub/grub.cfg
+  COMMAND ${CMAKE_COMMAND} -E echo "  multiboot2 /boot/redos.kernel" >> ${ISODIR}/boot/grub/grub.cfg
+  COMMAND ${CMAKE_COMMAND} -E echo "  boot" >> ${ISODIR}/boot/grub/grub.cfg
+  COMMAND ${CMAKE_COMMAND} -E echo "}" >> ${ISODIR}/boot/grub/grub.cfg
   COMMAND grub2-mkrescue -o ${ISO_FILE} ${ISODIR}
   DEPENDS install_kernel
   COMMENT "Generating bootable ISO image"
@@ -37,7 +42,7 @@ add_custom_target(iso ALL
 
 # Custom target: Run QEMU without serial logging.
 add_custom_target(qemu
-  COMMAND qemu-system-i386 -cdrom ${ISO_FILE}
+  COMMAND qemu-system-x86_64 -cdrom ${ISO_FILE} -serial mon:stdio -d int,cpu_reset -no-reboot
   DEPENDS iso
   COMMENT "Launching QEMU with the generated ISO (no serial logging)"
 )
@@ -45,21 +50,21 @@ add_custom_target(qemu
 # Custom target: Run QEMU with serial logging to file.
 add_custom_target(qemu-serial
   COMMAND ${CMAKE_COMMAND} -E echo "Starting QEMU with serial output redirected to ${SERIAL_LOG_FILE}"
-  COMMAND qemu-system-i386 -cdrom ${ISO_FILE} -serial file:${SERIAL_LOG_FILE}
+  COMMAND qemu-system-x86_64 -cdrom ${ISO_FILE} -serial file:${SERIAL_LOG_FILE}
   DEPENDS iso
   COMMENT "Launching QEMU with serial output redirected to file"
 )
 
 # Custom target: Run QEMU with serial logging to console.
 add_custom_target(qemu-serial-console
-  COMMAND qemu-system-i386 -cdrom ${ISO_FILE} -serial mon:stdio
+  COMMAND qemu-system-x86_64 -cdrom ${ISO_FILE} -serial mon:stdio
   DEPENDS iso
   COMMENT "Launching QEMU with serial output redirected to console"
 )
 
 # Custom target: Run QEMU with serial logging and options for debugging.
 add_custom_target(qemu-debug
-  COMMAND qemu-system-i386 -cdrom ${ISO_FILE} -serial file:${SERIAL_LOG_FILE} -d int,cpu_reset -no-reboot
+  COMMAND qemu-system-x86_64 -cdrom ${ISO_FILE} -serial file:${SERIAL_LOG_FILE} -d int,cpu_reset -no-reboot
   DEPENDS iso
   COMMENT "Launching QEMU in debug mode with serial logging"
 )

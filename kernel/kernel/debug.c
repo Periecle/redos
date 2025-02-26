@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <kernel/tty.h>
 #include <kernel/debug.h>
-#include "../arch/i386/serial.h"
+#include "../arch/x86_64/serial.h"
 
 static int debug_level = DEBUG_LEVEL_INFO;
 static int debug_target = DEBUG_TARGET_VGA;

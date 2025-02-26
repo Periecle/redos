@@ -4,11 +4,11 @@
 #include <kernel/tty.h>
 
 /* Define the virtual base address for kernel */
-#define KERNEL_VIRTUAL_BASE 0xC0000000
+#define KERNEL_VIRTUAL_BASE 0xFFFFFFFF80000000
 
 /* Function to map a physical address to virtual address */
 static inline void* P2V(void* addr) {
-    return (void*)((uint32_t) addr + KERNEL_VIRTUAL_BASE);
+    return (void*)((uint64_t) addr + KERNEL_VIRTUAL_BASE);
 }
 
 /* Function to validate multiboot information */
@@ -16,16 +16,16 @@ void validate_boot(unsigned long magic, unsigned long addr) {
     struct multiboot_tag *tag;
     unsigned size;
 
-    printf("Validating multiboot information at virtual address %x\n", addr);
+    printf("Validating multiboot information at virtual address %lx\n", addr);
 
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
-        printf("Invalid magic number: %x (expected %x)\n",
-            (unsigned)magic, MULTIBOOT2_BOOTLOADER_MAGIC);
+        printf("Invalid magic number: %lx (expected %lx)\n",
+            magic, (unsigned long)MULTIBOOT2_BOOTLOADER_MAGIC);
         return;
     }
 
     if (addr & 7) {
-        printf("Unaligned multiboot info pointer: %x\n", addr);
+        printf("Unaligned multiboot info pointer: %lx\n", addr);
         return;
     }
 
@@ -33,7 +33,7 @@ void validate_boot(unsigned long magic, unsigned long addr) {
     if (addr < KERNEL_VIRTUAL_BASE) {
         printf("Multiboot info pointer appears to be a physical address, converting...\n");
         addr += KERNEL_VIRTUAL_BASE;
-        printf("Converted to virtual address: %x\n", addr);
+        printf("Converted to virtual address: %lx\n", addr);
     }
 
     size = *(unsigned*)addr;
@@ -57,20 +57,20 @@ void validate_boot(unsigned long magic, unsigned long addr) {
                 break;
 
             case MULTIBOOT_TAG_TYPE_MODULE:
-                printf("Module at %x-%x. Command line %s\n",
-                       ((struct multiboot_tag_module*)tag)->mod_start,
-                       ((struct multiboot_tag_module*)tag)->mod_end,
+                printf("Module at %lx-%lx. Command line %s\n",
+                       (unsigned long)((struct multiboot_tag_module*)tag)->mod_start,
+                       (unsigned long)((struct multiboot_tag_module*)tag)->mod_end,
                        ((struct multiboot_tag_module*)tag)->cmdline);
                 break;
 
             case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
-                printf("mem_lower = %dKB, mem_upper = %dKB\n",
+                printf("mem_lower = %uKB, mem_upper = %uKB\n",
                        ((struct multiboot_tag_basic_meminfo*)tag)->mem_lower,
                        ((struct multiboot_tag_basic_meminfo*)tag)->mem_upper);
                 break;
 
             case MULTIBOOT_TAG_TYPE_BOOTDEV:
-                printf("Boot device %x,%d,%d\n",
+                printf("Boot device %x,%u,%u\n",
                        ((struct multiboot_tag_bootdev*)tag)->biosdev,
                        ((struct multiboot_tag_bootdev*)tag)->slice,
                        ((struct multiboot_tag_bootdev*)tag)->part);
@@ -84,11 +84,11 @@ void validate_boot(unsigned long magic, unsigned long addr) {
                      (multiboot_uint8_t*)mmap < (multiboot_uint8_t*)tag + tag->size;
                      mmap = (multiboot_memory_map_t*)((unsigned long)mmap + ((struct multiboot_tag_mmap*)tag)->entry_size)) {
 
-                    printf("  Region: base=%x%08x, length=%x%08x, type=%d\n",
-                           (unsigned)(mmap->addr >> 32),
-                           (unsigned)(mmap->addr & 0xffffffff),
-                           (unsigned)(mmap->len >> 32),
-                           (unsigned)(mmap->len & 0xffffffff),
+                    printf("  Region: base=%lx%08lx, length=%lx%08lx, type=%u\n",
+                           (unsigned long)(mmap->addr >> 32),
+                           (unsigned long)(mmap->addr & 0xffffffff),
+                           (unsigned long)(mmap->len >> 32),
+                           (unsigned long)(mmap->len & 0xffffffff),
                            (unsigned)mmap->type);
                 }
                 break;
@@ -97,6 +97,6 @@ void validate_boot(unsigned long magic, unsigned long addr) {
     }
 
     tag = (struct multiboot_tag*)((multiboot_uint8_t*)tag + ((tag->size + 7) & ~7));
-    printf("Total multiboot info size: %d bytes\n", (unsigned)tag - addr);
+    printf("Total multiboot info size: %lu bytes\n", (unsigned long)tag - addr);
     printf("Multiboot validation complete!\n");
 }
