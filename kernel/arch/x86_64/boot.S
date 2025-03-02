@@ -1,233 +1,210 @@
-# boot.S - 64-bit kernel entry point and bootstrap
+# boot.S - Minimal 64-bit kernel entry point
 #define ASM_FILE 1
 #include <multiboot2.h>
 
 # Constants
 .set KERNEL_VIRTUAL_BASE, 0xFFFFFFFF80000000
-.set PAGE_SIZE,           4096
-.set PAGE_PRESENT,        (1 << 0)
-.set PAGE_WRITE,          (1 << 1)
-.set PAGE_USER,           (1 << 2)
-.set PAGE_SIZE_BIT,       (1 << 7)
+.set PAGE_SIZE, 4096
+.set PAGE_PRESENT, 0x1
+.set PAGE_WRITE, 0x2
+.set PAGE_HUGE, 0x80
 
-# Multiboot2 header for GRUB
+# Debug constants
+.set VGA_BUFFER, 0xB8000
+.set DEBUG_COLOR, 0x2F  # Green on black
+
+# Multiboot header - must be first in binary!
 .section .multiboot, "a"
 .align 8
 multiboot_header:
-    .long   MULTIBOOT2_HEADER_MAGIC
-    .long   MULTIBOOT_ARCHITECTURE_I386
-    .long   multiboot_header_end - multiboot_header
-    .long   -(MULTIBOOT2_HEADER_MAGIC + MULTIBOOT_ARCHITECTURE_I386 + (multiboot_header_end - multiboot_header))
+    # Multiboot2 header fields
+    .long MULTIBOOT2_HEADER_MAGIC           # Magic number
+    .long MULTIBOOT_ARCHITECTURE_I386       # Architecture (i386)
+    .long multiboot_header_end - multiboot_header  # Header length
+    # Checksum: -(magic + architecture + header_length) mod 2^32
+    .long -(MULTIBOOT2_HEADER_MAGIC + MULTIBOOT_ARCHITECTURE_I386 + (multiboot_header_end - multiboot_header))
 
-    # Information request tag
-    .short  MULTIBOOT_HEADER_TAG_INFORMATION_REQUEST
-    .short  0
-    .long   12  # Tag size
-    .long   MULTIBOOT_TAG_TYPE_MMAP
-    .long   MULTIBOOT_TAG_TYPE_CMDLINE
-    .long   MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME
+    # Information request tag - required to get memory map
+    .short MULTIBOOT_HEADER_TAG_INFORMATION_REQUEST
+    .short 0        # Flags - must be zero
+    .long 16        # Tag size including header (8) + two 4-byte entries
+    .long MULTIBOOT_TAG_TYPE_MMAP           # Request memory map
+    .long MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME  # Request bootloader name
 
     # End tag
-    .short  MULTIBOOT_HEADER_TAG_END
-    .short  0
-    .long   8
+    .short MULTIBOOT_HEADER_TAG_END
+    .short 0        # Flags - must be zero
+    .long 8         # Tag size (8 bytes)
 multiboot_header_end:
 
-# 32-bit entry point
+# Allocate initial bootstrap stack
+.section .bootstrap_stack, "aw", @nobits
+.align 16
+stack_bottom:
+    .skip 16384  # 16 KiB
+stack_top:
+
+# Reserve space for page tables
+.section .bootstrap_page_tables, "aw", @nobits
+.align 4096
+pml4_table:
+    .skip 4096
+pdpt_table:
+    .skip 4096
+pd_table:
+    .skip 4096
+
+# Debug strings
+.section .rodata
+debug_msg: .asciz "RedOS 64-bit is booting..."
+
+# Kernel entry point
 .section .bootstrap, "ax"
 .code32
 .global _start
 _start:
-    # Disable interrupts
-    cli
+    # Clear direction flag
+    cld
 
-    # Save multiboot info using RIP-relative addressing
-    movl    %ebx, multiboot_info_ptr(%ebx)
-    movl    %eax, multiboot_magic(%ebx)
+    # Save multiboot info
+    movl %ebx, mb_info_ptr - KERNEL_VIRTUAL_BASE
+    movl %eax, mb_magic - KERNEL_VIRTUAL_BASE
 
-    # Setup temporary stack
-    movl    $boot_stack_top, %esp
+    # Set up stack
+    movl $(stack_top - KERNEL_VIRTUAL_BASE), %esp
 
-    # Check multiboot magic
-    cmpl    $MULTIBOOT2_BOOTLOADER_MAGIC, %eax
-    jne     multiboot_error
+    # Write debug message to VGA (direct write to verify we're running)
+    movl $VGA_BUFFER, %edi
+    movl $(debug_msg - KERNEL_VIRTUAL_BASE), %esi
+    movb $DEBUG_COLOR, %bl  # Use 8-bit register for color
+write_char:
+    movb (%esi), %al
+    testb %al, %al
+    jz setup_cpu
+    movb %bl, %ah  # Move color to ah
+    movw %ax, (%edi)
+    addl $1, %esi
+    addl $2, %edi
+    jmp write_char
 
-    # Enable PAE and SSE
-    movl    %cr4, %eax
-    orl     $0x620, %eax    # PAE (bit 5), OSFXSR (bit 9), OSXMMEXCPT (bit 10)
-    movl    %eax, %cr4
+setup_cpu:
+    # Enable PAE
+    movl %cr4, %eax
+    orl $0x20, %eax
+    movl %eax, %cr4
 
-    # Setup long mode
-    call    check_cpuid
-    call    check_long_mode
-
-    # Setup page tables
-    call    setup_page_tables
-
-    # Load 64-bit GDT
-    lgdt    gdt64_ptr
-
-    # Enable long mode and paging
-    movl    $0xC0000080, %ecx  # EFER MSR
+    # Set long mode bit in EFER MSR
+    movl $0xC0000080, %ecx
     rdmsr
-    orl     $0x100, %eax    # LME bit
+    orl $0x100, %eax
     wrmsr
 
+    # Set up paging structures
+    # Clear tables first
+    movl $(pml4_table - KERNEL_VIRTUAL_BASE), %edi
+    xorl %eax, %eax
+    movl $3072, %ecx
+    rep stosl
+
+    # PML4 Entry 0 (identity mapping)
+    movl $(pdpt_table - KERNEL_VIRTUAL_BASE + PAGE_PRESENT + PAGE_WRITE), %eax
+    movl %eax, (pml4_table - KERNEL_VIRTUAL_BASE)
+
+    # PML4 Entry 511 (higher half mapping)
+    movl $(pdpt_table - KERNEL_VIRTUAL_BASE + PAGE_PRESENT + PAGE_WRITE), %eax
+    movl %eax, (pml4_table - KERNEL_VIRTUAL_BASE + 511*8)
+
+    # PDPT Entry 0 (identity mapping)
+    movl $(pd_table - KERNEL_VIRTUAL_BASE + PAGE_PRESENT + PAGE_WRITE), %eax
+    movl %eax, (pdpt_table - KERNEL_VIRTUAL_BASE)
+
+    # PDPT Entry 510 (higher half mapping)
+    movl $(pd_table - KERNEL_VIRTUAL_BASE + PAGE_PRESENT + PAGE_WRITE), %eax
+    movl %eax, (pdpt_table - KERNEL_VIRTUAL_BASE + 510*8)
+
+    # Map first 2MB with a huge page
+    movl $(PAGE_PRESENT | PAGE_WRITE | PAGE_HUGE), %eax
+    movl %eax, (pd_table - KERNEL_VIRTUAL_BASE)
+
+    # Map second 2MB with a huge page (for VGA buffer)
+    movl $(0x200000 | PAGE_PRESENT | PAGE_WRITE | PAGE_HUGE), %eax
+    movl %eax, (pd_table - KERNEL_VIRTUAL_BASE + 8)
+
+    # Load PML4 into CR3
+    movl $(pml4_table - KERNEL_VIRTUAL_BASE), %eax
+    movl %eax, %cr3
+
     # Enable paging and protected mode
-    movl    %cr0, %eax
-    orl     $0x80000001, %eax   # PG and PE bits
-    movl    %eax, %cr0
+    movl %cr0, %eax
+    orl $0x80000001, %eax  # Set PG and PE bits
+    movl %eax, %cr0
 
-    # Far jump to 64-bit code with proper segment
-    ljmp    $0x08, $long_mode_start
+    # Load 64-bit GDT
+    lgdt (gdt64_ptr - KERNEL_VIRTUAL_BASE)
 
-# Check for CPUID support
-check_cpuid:
-    # Try to flip ID bit in EFLAGS
-    pushfl
-    popl    %eax
-    movl    %eax, %ecx
-    xorl    $0x200000, %eax
-    pushl   %eax
-    popfl
-    pushfl
-    popl    %eax
-    xorl    %ecx, %eax
-    testl   $0x200000, %eax
-    jz      .no_cpuid
-    ret
+    # Jump to 64-bit code
+    ljmp $0x08, $(long_mode_entry - KERNEL_VIRTUAL_BASE)
 
-.no_cpuid:
-    # Use RIP-relative addressing for error message
-    movl    $no_cpuid_msg, %esi
-    call    print_error
-    jmp     halt
+.align 16
+gdt64:
+    # Null descriptor
+    .quad 0
+    # Code segment descriptor
+    .quad 0x00AF9A000000FFFF  # Long mode code
+    # Data segment descriptor
+    .quad 0x00AF92000000FFFF  # Long mode data
+gdt64_ptr:
+    .word gdt64_ptr - gdt64 - 1  # Limit
+    .long gdt64 - KERNEL_VIRTUAL_BASE  # Base
 
-# Check for long mode support
-check_long_mode:
-    movl    $0x80000000, %eax
-    cpuid
-    cmpl    $0x80000001, %eax
-    jb      .no_long_mode
+.section .bootstrap_data, "aw", @nobits
+mb_info_ptr:
+    .long 0
+mb_magic:
+    .long 0
 
-    movl    $0x80000001, %eax
-    cpuid
-    testl   $0x20000000, %edx  # Long mode bit
-    jz      .no_long_mode
-    ret
-
-.no_long_mode:
-    # Use RIP-relative addressing for error message
-    movl    $no_long_mode_msg, %esi
-    call    print_error
-    jmp     halt
-
-# Setup 4-level paging for 64-bit
-setup_page_tables:
-    # Clear page tables
-    movl    $pml4_table, %edi
-    xorl    %eax, %eax
-    movl    $3072, %ecx  # 3 pages (PML4, PDPT, PD)
-    rep     stosb
-
-    # PML4[0] and PML4[511] point to same PDPT
-    movl    $pdpt_table, %eax
-    orl     $(PAGE_PRESENT | PAGE_WRITE), %eax
-    movl    %eax, pml4_table
-    movl    %eax, pml4_table + (511 * 8)
-
-    # PDPT[0] and PDPT[510] point to PD
-    movl    $pd_table, %eax
-    orl     $(PAGE_PRESENT | PAGE_WRITE), %eax
-    movl    %eax, pdpt_table
-    movl    %eax, pdpt_table + (510 * 8)
-
-    # Map first 2MB with huge pages
-    movl    $pd_table, %edi
-    movl    $(PAGE_PRESENT | PAGE_WRITE | PAGE_SIZE_BIT), %eax
-    movl    %eax, (%edi)  # First 2MB identity mapped
-
-    # Load CR3 with PML4 address
-    movl    $pml4_table, %eax
-    movl    %eax, %cr3
-
-    ret
-
-# Error handling and debug output
-print_error:
-    movl    $0xb8000, %edi
-    movl    $0x4f4f4f4f, %eax  # Red background
-1:
-    movb    (%esi), %bl
-    testb   %bl, %bl
-    jz      2f
-    movw    %ax, (%edi)
-    incl    %esi
-    addl    $2, %edi
-    jmp     1b
-2:
-    ret
-
-# 64-bit long mode entry
 .section .text
 .code64
-long_mode_start:
-    # Setup segment registers
-    movq    $0x10, %rax
-    movw    %ax, %ds
-    movw    %ax, %es
-    movw    %ax, %fs
-    movw    %ax, %gs
-    movw    %ax, %ss
+long_mode_entry:
+    # Set up segment registers - individual instructions
+    movq $0x10, %rax  # Use 64-bit register
+    movw %ax, %ds     # Then move lower 16 bits to segment registers
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %gs
+    movw %ax, %ss
 
-    # Zero out the base pointer
-    xorq    %rbp, %rbp
+    # Write to VGA directly in long mode to verify we got here
+    movq $VGA_BUFFER, %rdi
+    addq $160, %rdi  # Move to next line
+    movq $0x2F582F582F582F58, %rax  # "XXXX" in green on black
+    movq %rax, (%rdi)
 
-    # Restore multiboot parameters
-    movq    multiboot_magic(%rip), %rdi
-    movq    multiboot_info_ptr(%rip), %rsi
+    # Set up higher-half stack
+    movabsq $stack_top, %rsp
 
-    # Jump to higher half kernel
-    movabs  $kernel_main, %rax
-    jmpq    *%rax
+    # Clear the frame pointer
+    xorq %rbp, %rbp
 
-# Halt the system
+    # Prepare arguments for kernel_main
+    movl mb_magic(%rip), %edi
+    movl mb_info_ptr(%rip), %esi
+
+    # Check if multiboot info is a physical address
+    movabsq $0xFFFFFFFF00000000, %rax
+    testq %rax, %rsi
+    jnz 1f
+
+    # Convert to higher-half address if it's a physical address
+    movabsq $KERNEL_VIRTUAL_BASE, %rax
+    addq %rax, %rsi
+1:
+    # Call kernel_main
+    movabsq $kernel_main, %rax
+    callq *%rax
+
+    # Kernel should never return, but if it does:
 halt:
     cli
     hlt
-    jmp     halt
-
-# 64-bit GDT descriptor
-.align 16
-gdt64:
-    .quad   0  # Null descriptor
-    .quad   0x00AF9A000000FFFF  # 64-bit code segment
-    .quad   0x00AF92000000FFFF  # 64-bit data segment
-
-gdt64_ptr:
-    .word   (gdt64_ptr - gdt64 - 1)  # Limit
-    .quad   gdt64  # Base
-
-# Message strings
-.section .rodata
-no_cpuid_msg:     .asciz "No CPUID support"
-no_long_mode_msg: .asciz "Long mode not supported"
-multiboot_error:  .asciz "Not loaded by Multiboot2"
-
-# Multiboot info storage
-.section .data
-multiboot_magic:      .quad 0
-multiboot_info_ptr:   .quad 0
-
-# Page tables (4KB aligned)
-.section .bootstrap_tables, "aw", @nobits
-.align 4096
-pml4_table:   .space 4096
-pdpt_table:   .space 4096
-pd_table:     .space 4096
-
-# Bootstrap stack
-.section .bootstrap_stack, "aw", @nobits
-.align 16
-    .space 16384  # 16 KB stack
-boot_stack_top:
+    jmp halt

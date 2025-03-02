@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 extern void serial_com1_write_byte(unsigned char byte);
@@ -12,6 +13,40 @@ void printf_enable_serial(bool enable) {
 }
 
 extern bool terminal_is_serial_enabled(void);
+
+static int ptr_to_hex(char *str, void *ptr) {
+    uintptr_t value = (uintptr_t)ptr;
+    int i = 0;
+    int digit;
+    char buffer[20]; // More than enough for 64-bit pointers
+
+    // Handle zero case
+    if (value == 0) {
+        str[0] = '0';
+        str[1] = '\0';
+        return 1;
+    }
+
+    // Build string in reverse
+    while (value) {
+        digit = value & 0xF;
+        buffer[i++] = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
+        value >>= 4;
+    }
+
+    // Ensure we print at least 16 chars for 64-bit pointers
+    while (i < 16) {
+        buffer[i++] = '0';
+    }
+
+    // Copy reversed
+    int j;
+    for (j = 0; j < i; j++) {
+        str[j] = buffer[i - j - 1];
+    }
+    str[j] = '\0';
+    return j;
+}
 
 static bool print(const char *data, size_t length) {
     const unsigned char *bytes = (const unsigned char *) data;
@@ -222,9 +257,8 @@ int printf(const char *restrict format, ...) {
                     return -1;
                 written += 2;
 
-                unsigned int ptr_val = (unsigned int)ptr;
-                char num_str[32];
-                int len = utoa(num_str, ptr_val, 16);
+                char num_str[20]; // Buffer for 64-bit pointer
+                int len = ptr_to_hex(num_str, ptr);
 
                 if (maxrem < (size_t)len + 2) {
                     return -1;

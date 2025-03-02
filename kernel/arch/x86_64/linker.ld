@@ -1,7 +1,7 @@
-/* 64-bit Kernel Linker Script */
+/* Linker script for 64-bit kernel */
 ENTRY(_start)
 
-/* Define kernel addresses */
+/* Define the kernel addressing scheme */
 KERNEL_VIRTUAL_BASE = 0xFFFFFFFF80000000;
 KERNEL_PHYSICAL_BASE = 0x00100000; /* 1MB */
 
@@ -10,69 +10,73 @@ SECTIONS
     /* Start at 1MB physical */
     . = KERNEL_PHYSICAL_BASE;
 
+    /* Physical start marker */
     kernel_physical_start = .;
 
-    /* Multiboot header must be at the start */
-    .multiboot ALIGN(8) : {
-        *(.multiboot)
+    /* IMPORTANT: Multiboot header must be first */
+    .multiboot : {
+        KEEP(*(.multiboot))
     }
 
-    /* 32-bit bootstrap code */
-    .bootstrap ALIGN(4K) : {
+    /* Bootstrap code section (32-bit) */
+    .bootstrap : {
         *(.bootstrap)
-    }
-
-    /* Bootstrap data and variables */
-    .bootstrap_data ALIGN(4K) : {
+        *(.bootstrap_rodata)
         *(.bootstrap_data)
-        *(.bootstrap_vars)
-        *(.data .data.*)
     }
 
-    /* Page tables */
-    .bootstrap_tables ALIGN(4K) : {
-        *(.bootstrap_tables)
+    /* Bootstrap page tables section */
+    .bootstrap_page_tables ALIGN(4096) : {
+        *(.bootstrap_page_tables)
     }
 
-    /* Bootstrap stack */
+    /* Bootstrap stack section */
     .bootstrap_stack ALIGN(16) : {
         *(.bootstrap_stack)
     }
 
-    /* Transition to higher half kernel */
+    /* Store physical end marker for bootstrap section */
+    bootstrap_end = .;
+
+    /* Switch to higher half for the rest of the kernel */
     . += KERNEL_VIRTUAL_BASE;
+
+    /* Virtual start marker */
     kernel_virtual_start = .;
 
-    /* 64-bit executable code */
+    /* Code section */
     .text ALIGN(4K) : AT(ADDR(.text) - KERNEL_VIRTUAL_BASE) {
-        *(.text .text.*)
+        *(.text)
+        *(.text.*)
     }
 
     /* Read-only data */
     .rodata ALIGN(4K) : AT(ADDR(.rodata) - KERNEL_VIRTUAL_BASE) {
-        *(.rodata .rodata.*)
-        *(.eh_frame)
+        *(.rodata)
+        *(.rodata.*)
     }
 
     /* Read-write data */
     .data ALIGN(4K) : AT(ADDR(.data) - KERNEL_VIRTUAL_BASE) {
         *(.data)
+        *(.data.*)
     }
 
     /* Uninitialized data */
-    .bss ALIGN(4K) : {
+    .bss ALIGN(4K) : AT(ADDR(.bss) - KERNEL_VIRTUAL_BASE) {
         *(COMMON)
-        *(.bss .bss.*)
+        *(.bss)
+        *(.bss.*)
     }
 
-    /* Clean up */
+    /* Discard unnecessary sections */
     /DISCARD/ : {
         *(.comment)
         *(.eh_frame)
-        *(.note.gnu.build-id)
+        *(.note)
     }
 
-    /* Record kernel end addresses */
+    /* End markers */
     kernel_physical_end = . - KERNEL_VIRTUAL_BASE;
     kernel_virtual_end = .;
 }

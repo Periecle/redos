@@ -3,8 +3,7 @@ project(RedosOS C ASM)
 
 # Global compile options for a freestanding build.
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -ffreestanding -Wall -Wextra -fstack-protector-strong -mcmodel=kernel")
-
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -ffreestanding -Wall -Wextra -fstack-protector-strong -mcmodel=kernel -mno-red-zone")
 # Set output directories.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -29,9 +28,9 @@ add_custom_target(iso ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory ${ISODIR}/boot/grub
   COMMAND ${CMAKE_COMMAND} -E copy ${BOOTDIR}/redos.kernel ${ISODIR}/boot/redos.kernel
   # Write a proper GRUB configuration file for Multiboot2
-  COMMAND ${CMAKE_COMMAND} -E echo "set timeout=0" > ${ISODIR}/boot/grub/grub.cfg
+  COMMAND ${CMAKE_COMMAND} -E echo "set timeout=3" > ${ISODIR}/boot/grub/grub.cfg
   COMMAND ${CMAKE_COMMAND} -E echo "set default=0" >> ${ISODIR}/boot/grub/grub.cfg
-  COMMAND ${CMAKE_COMMAND} -E echo "menuentry \"RedOS\" {" >> ${ISODIR}/boot/grub/grub.cfg
+  COMMAND ${CMAKE_COMMAND} -E echo "menuentry \"RedOS 64-bit\" {" >> ${ISODIR}/boot/grub/grub.cfg
   COMMAND ${CMAKE_COMMAND} -E echo "  multiboot2 /boot/redos.kernel" >> ${ISODIR}/boot/grub/grub.cfg
   COMMAND ${CMAKE_COMMAND} -E echo "  boot" >> ${ISODIR}/boot/grub/grub.cfg
   COMMAND ${CMAKE_COMMAND} -E echo "}" >> ${ISODIR}/boot/grub/grub.cfg
